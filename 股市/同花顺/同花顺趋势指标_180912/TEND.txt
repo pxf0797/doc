@@ -1,13 +1,13 @@
 ﻿//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //TEND                          名称
-//EMA_SHORT1                    4.00             // 0.00--30.00   EMA短天数1
-//EMA_LONG1                     11.00            // 0.00--30.00   EMA长天数1
-//EMA_SHORT2                    12.00            // 10.00--100.00 EMA短天数2
-//EMA_LONG2                     26.00            // 10.00--100.00 EMA长天数2
-//EMA_SHORT3                    21.00            // 20.00--200.00 EMA短天数3
-//EMA_LONG3                     43.00            // 20.00--200.00 EMA长天数3
-//TSMA_DAY                      5.00             // 0.00--10.00   短趋平滑移动平均线天数，一般取5
-//TSMA_SLOWDOWN_PERCENT         0.75             // 0.00--1.00    短趋平滑移动平均线放缓百分比进行标记·一般会取0.75
+//EMA_SHORT1                    4.00              // 0.00--30.00   EMA短天数1
+//EMA_LONG1                     11.00             // 0.00--30.00   EMA长天数1
+//EMA_SHORT2                    12.00             // 10.00--100.00 EMA短天数2
+//EMA_LONG2                     26.00             // 10.00--100.00 EMA长天数2
+//EMA_SHORT3                    21.00             // 20.00--200.00 EMA短天数3
+//EMA_LONG3                     43.00             // 20.00--200.00 EMA长天数3
+//TSMA_DAY                      5.00              // 0.00--10.00   短趋平滑移动平均线天数，一般取5
+//TSMA_SLOWDOWN_PERCENT         0.75              // 0.00--1.00    短趋平滑移动平均线放缓百分比进行标记·一般会取0.75
 
 // 参数精灵
 //EMA_SHORT1 Param#1
@@ -24,10 +24,10 @@
 
 
 // 指标内限制参数
-MARK_ENABLE_0NO_1YES            := 1.00;         // 0.00--1.00     短趋平滑移动平均线标记使能
-USE_0AMOUNT_1CLOSE_2AVE         := 1.00;         // 0.00--2.00     均价计算方式，0使用总额计算，1收盘价，2平均计算
-CONSTANT_MARGINAL_MAX           := 50.00;        // 20.00--200.00  边缘限制值
-CONSTANT_STICK_WIDTH            := 10.00;        // 0.00--10.00    趋势力柱体宽度·最大为10·k线宽度
+MARK_ENABLE_0NO_1YES            := 1.00;          // 0.00--1.00     短趋平滑移动平均线标记使能
+USE_0AMOUNT_1CLOSE_2AVE         := 1.00;          // 0.00--2.00     均价计算方式，0使用总额计算，1收盘价，2平均计算
+CONSTANT_MARGINAL_MAX           := 80.00;         // 20.00--200.00  边缘限制值
+CONSTANT_STICK_WIDTH            := 10.00;         // 0.00--10.00    趋势力柱体宽度·最大为10·k线宽度
 
 
 // AVAREAGE_CURRENCY计算趋势线使用开盘价、收盘价、最高价、最低价的平均值,侧重开盘和收盘价
@@ -51,15 +51,16 @@ Tstick2:=IF(Tstick1>CONSTANT_MARGINAL_MAX,CONSTANT_MARGINAL_MAX,IF(Tstick1<-CONS
 Tforce:=(TF2-TM2);                                                                      // 趋势能量力
 Tforce0:=REF(Tforce,1);                                                                 // 上一趋势力
 // 图形化趋势能量力·都是在前期基础上叠加
-STICKLINE(Tforce>Tforce0,Tforce,Tforce0,CONSTANT_STICK_WIDTH,-1),colorred;              // 实线空心
-STICKLINE(Tforce<Tforce0,Tforce,Tforce0,CONSTANT_STICK_WIDTH,-1),colorgreen;            // 实线空心
+// STICKLINE(COND,PRICE1,PRICE2,WIDTH,EMPTY),当COND条件满足时,在PRICE1和PRICE2位置之间画柱状线，宽度为WIDTH(10为标准间距),EMPTH不为0则画空心柱。
+STICKLINE(Tforce>Tforce0,Tforce,Tforce0,CONSTANT_STICK_WIDTH,1),colorred;               // 实线空心
+STICKLINE(Tforce<Tforce0,Tforce,Tforce0,CONSTANT_STICK_WIDTH,1),colorgreen;             // 实线空心
 
 // TENDENCY_STICK
 Tstick:Tstick2,COLORSTICK;                                                              // 趋势冲击力
 
 // TENDENCY
 TS:TS2,colorwhite;
-TSMA:TSMA2,colorcyan;
+TSMA:TSMA2,colorcyan,LINETHICK2;
 TF:TF2,colorgreen;
 TM:TM2,colorbrown;
 
