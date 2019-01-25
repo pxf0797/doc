@@ -1,0 +1,116 @@
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//TEND                          名称
+//EMA_SHORT1                    4.00              // 0.00--30.00   EMA短天数1
+//EMA_LONG1                     11.00             // 0.00--30.00   EMA长天数1
+//EMA_SHORT2                    12.00             // 10.00--100.00 EMA短天数2
+//EMA_LONG2                     26.00             // 10.00--100.00 EMA长天数2
+//EMA_SHORT3                    21.00             // 20.00--200.00 EMA短天数3
+//EMA_LONG3                     43.00             // 20.00--200.00 EMA长天数3
+//TSMA_DAY                      5.00              // 0.00--10.00   短趋平滑移动平均线天数，一般取5
+//TSMA_SLOWDOWN_PERCENT         0.75              // 0.00--1.00    短趋平滑移动平均线放缓百分比进行标记·一般会取0.75
+//TM_SLOWDOWN_PERCENT           0.70              // 0.00--1.00    边缘线放缓百分比进行标记·一般会取0.70
+
+// 参数精灵
+//EMA_SHORT1 Param#1
+//EMA_LONG1 Param#2
+//EMA_SHORT2 Param#3
+//EMA_LONG2 Param#4
+//EMA_SHORT3 Param#5
+//EMA_LONG3 Param#6
+//TSMA_DAY Param#7
+//TSMA_SLOWDOWN_PERCENT Param#8
+//TM_SLOWDOWN_PERCENT Param#9
+
+// 日志信息
+// 180912 pxf 重新设计并规范化代码
+// 181106 pxf 1.更换短趋平均线上各趋势标识
+//            2.边缘线上增加与短趋平均线相同的标识
+
+
+// 指标内限制参数
+MARK_ENABLE_0NO_1YES            := 1.00;          // 0.00--1.00     短趋平滑移动平均线标记使能
+USE_0AMOUNT_1CLOSE_2AVE         := 1.00;          // 0.00--2.00     均价计算方式，0使用总额计算，1收盘价，2平均计算
+CONSTANT_MARGINAL_MAX           := 80.00;         // 20.00--200.00  边缘限制值
+CONSTANT_STICK_WIDTH            := 10.00;         // 0.00--10.00    趋势力柱体宽度·最大为10·k线宽度
+
+
+// AVAREAGE_CURRENCY计算趋势线使用开盘价、收盘价、最高价、最低价的平均值,侧重开盘和收盘价
+AC:=IF(USE_0AMOUNT_1CLOSE_2AVE,IF(USE_0AMOUNT_1CLOSE_2AVE>1,(3*OPEN+3*CLOSE+2*HIGH+2*LOW)/10,CLOSE),AMOUNT/(VOL*100)); // 均价
+
+// Tendency=[(EMAshort/EMAlong)-1]*100;
+// TENDENCY_SHORT,DETECTOR_LINE,TENDENCY_FOLLOW,TENDENCY_MARGIN,TENDENCY_STICK,TENDENCY_FORCE
+TS1:=(EMA(AC,EMA_SHORT1)/EMA(AC,EMA_LONG1)-1)*100;                                                  // 短趋线
+TSMA1:=EMA(TS1,TSMA_DAY);                                                                           // 短趋平均线
+TF1:=(EMA(AC,EMA_SHORT2)/EMA(AC,EMA_LONG2)-1)*100;                                                  // 跟随线
+TM1:=(EMA(AC,EMA_SHORT3)/EMA(AC,EMA_LONG3)-1)*100;                                                  // 边缘线
+Tstick1:=(TSMA1-REF(TSMA1,1))*3;                                                                    // 趋势冲击力·力柱，一般进行3倍放大
+// 对各趋势线作出限制
+TS2:=IF(TS1>CONSTANT_MARGINAL_MAX,CONSTANT_MARGINAL_MAX,IF(TS1<-CONSTANT_MARGINAL_MAX,-CONSTANT_MARGINAL_MAX,TS1));
+TSMA2:=IF(TSMA1>CONSTANT_MARGINAL_MAX,CONSTANT_MARGINAL_MAX,IF(TSMA1<-CONSTANT_MARGINAL_MAX,-CONSTANT_MARGINAL_MAX,TSMA1));
+TF2:=IF(TF1>CONSTANT_MARGINAL_MAX,CONSTANT_MARGINAL_MAX,IF(TF1<-CONSTANT_MARGINAL_MAX,-CONSTANT_MARGINAL_MAX,TF1));
+TM2:=IF(TM1>CONSTANT_MARGINAL_MAX,CONSTANT_MARGINAL_MAX,IF(TM1<-CONSTANT_MARGINAL_MAX,-CONSTANT_MARGINAL_MAX,TM1));
+Tstick2:=IF(Tstick1>CONSTANT_MARGINAL_MAX,CONSTANT_MARGINAL_MAX,IF(Tstick1<-CONSTANT_MARGINAL_MAX,-CONSTANT_MARGINAL_MAX,Tstick1));
+
+// TENDENCY_FORCE
+Tforce:=(TF2-TM2);                                                                                  // 趋势能量力
+Tforce0:=REF(Tforce,1);                                                                             // 上一趋势力
+// 图形化趋势能量力·都是在前期基础上叠加
+// STICKLINE(COND,PRICE1,PRICE2,WIDTH,EMPTY),当COND条件满足时,在PRICE1和PRICE2位置之间画柱状线，宽度为WIDTH(10为标准间距),EMPTH不为0则画空心柱。
+STICKLINE(Tforce>Tforce0,Tforce,Tforce0,CONSTANT_STICK_WIDTH,1),colorred;                           // 实线空心
+STICKLINE(Tforce<Tforce0,Tforce,Tforce0,CONSTANT_STICK_WIDTH,1),colorgreen;                         // 实线空心
+
+// TENDENCY_STICK
+Tstick:Tstick2,COLORSTICK;                                                                          // 趋势冲击力
+
+// TENDENCY
+TS:TS2,colorwhite;
+TSMA:TSMA2,coloryellow,LINETHICK2;
+TF:TF2,colorgreen;
+TM:TM2,colorbrown;
+
+// 用法:DRAWICON(COND,PRICE,TYPE),当COND条件满足时,在PRICE位置画TYPE号图标
+// 15种图标编码为1-15(1-3为小脸,4-5为上下箭头,6-7为红绿小旗,8-9为三角形,10-12为信号灯,13-15为O、X、四方形)
+// 例如:DRAWICON(CLOSE>OPEN,LOW,4)表示当收阳时在最低价位置画4号图标
+// TSMA短趋平均线增加一个放缓或反转标记
+TSMA_STRENGTH0:=REF(TSMA,1);                                                                        // 获得往期力度
+TSMA_STRENGTH00:=REF(TSMA_STRENGTH0,1);                                                             // 获得往期力度
+TSMA_STRENGTH_MAX:=HHV(TSMA,3);                                                                     // 获得往期力度最大值
+TSMA_STRENGTH_MIN:=LLV(TSMA,3);                                                                     // 获得往期力度最小值
+// 下行放缓(TSMA_STRENGTH00-TSMA_STRENGTH0)*TSMA_SLOWDOWN_PERCENT>(TSMA_STRENGTH0-TSMA)
+TSMA_DOWN_SLLOW:=IF(TSMA_STRENGTH00>TSMA_STRENGTH0 AND TSMA_STRENGTH0>TSMA AND (TSMA_STRENGTH00-TSMA_STRENGTH0)*TSMA_SLOWDOWN_PERCENT>(TSMA_STRENGTH0-TSMA),TSMA_STRENGTH0,TSMA_STRENGTH_MAX); // 计算放缓
+//DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MAX>TSMA_DOWN_SLLOW)),TSMA,11);
+DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MAX>TSMA_DOWN_SLLOW)),TSMA,"*"),colorcyan; // 图标太大了，换成文字
+// 下行反转
+TSMA_DOWN_SLLOW:=IF(TSMA_STRENGTH00>TSMA_STRENGTH0 AND TSMA_STRENGTH0<TSMA,TSMA_STRENGTH0,TSMA_STRENGTH_MAX); // 计算反转
+DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MAX>TSMA_DOWN_SLLOW)),TSMA,1);
+//DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MAX>TSMA_DOWN_SLLOW)),TSMA,"*"),colorred;
+// 上行放缓(TSMA_STRENGTH00-TSMA_STRENGTH0)*TSMA_SLOWDOWN_PERCENT<(TSMA_STRENGTH0-TSMA)
+TSMA_UP_SLLOW:=IF(TSMA_STRENGTH00<TSMA_STRENGTH0 AND TSMA_STRENGTH0<TSMA AND (TSMA_STRENGTH00-TSMA_STRENGTH0)*TSMA_SLOWDOWN_PERCENT<(TSMA_STRENGTH0-TSMA),TSMA_STRENGTH0,TSMA_STRENGTH_MIN);   // 计算放缓
+//DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MIN<TSMA_UP_SLLOW)),TSMA,10);
+DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MIN<TSMA_UP_SLLOW)),TSMA,"*"),colorred;    // 图标太大了，换成文字
+// 上行反转
+TSMA_UP_SLLOW:=IF(TSMA_STRENGTH00<TSMA_STRENGTH0 AND TSMA_STRENGTH0>TSMA,TSMA_STRENGTH0,TSMA_STRENGTH_MIN); // 计算反转
+DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MIN<TSMA_UP_SLLOW)),TSMA,2);
+//DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TSMA_STRENGTH_MIN<TSMA_UP_SLLOW)),TSMA,"!"),colorcyan;
+
+// TM边缘线增加一个放缓或反转标记
+TM_STRENGTH0:=REF(TM,1);                                                                            // 获得往期力度
+TM_STRENGTH00:=REF(TM_STRENGTH0,1);                                                                 // 获得往期力度
+TM_STRENGTH_MAX:=HHV(TM,3);                                                                         // 获得往期力度最大值
+TM_STRENGTH_MIN:=LLV(TM,3);                                                                         // 获得往期力度最小值
+// 下行放缓(TM_STRENGTH00-TM_STRENGTH0)*TM_SLOWDOWN_PERCENT>(TM_STRENGTH0-TM)
+TM_DOWN_SLLOW:=IF(TM_STRENGTH00>TM_STRENGTH0 AND TM_STRENGTH0>TM AND (TM_STRENGTH00-TM_STRENGTH0)*TM_SLOWDOWN_PERCENT>(TM_STRENGTH0-TM),TM_STRENGTH0,TM_STRENGTH_MAX); // 计算放缓
+//DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MAX>TM_DOWN_SLLOW)),TM,11);
+DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MAX>TM_DOWN_SLLOW)),TM,"*"),colorcyan;       // 图标太大了，换成文字
+// 下行反转
+TM_DOWN_SLLOW:=IF(TM_STRENGTH00>TM_STRENGTH0 AND TM_STRENGTH0<TM,TM_STRENGTH0,TM_STRENGTH_MAX);     // 计算反转
+DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MAX>TM_DOWN_SLLOW)),TM,1);
+//DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MAX>TM_DOWN_SLLOW)),TM,"*"),colorred;
+// 上行放缓(TM_STRENGTH00-TM_STRENGTH0)*TM_SLOWDOWN_PERCENT<(TM_STRENGTH0-TM)
+TM_UP_SLLOW:=IF(TM_STRENGTH00<TM_STRENGTH0 AND TM_STRENGTH0<TM AND (TM_STRENGTH00-TM_STRENGTH0)*TM_SLOWDOWN_PERCENT<(TM_STRENGTH0-TM),TM_STRENGTH0,TM_STRENGTH_MIN);   // 计算放缓
+//DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MIN<TM_UP_SLLOW)),TM,10);
+DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MIN<TM_UP_SLLOW)),TM,"*"),colorred;          // 图标太大了，换成文字
+// 上行反转
+TM_UP_SLLOW:=IF(TM_STRENGTH00<TM_STRENGTH0 AND TM_STRENGTH0>TM,TM_STRENGTH0,TM_STRENGTH_MIN);       // 计算反转
+DRAWICON(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MIN<TM_UP_SLLOW)),TM,2);
+//DRAWTEXT(((MARK_ENABLE_0NO_1YES>0.00) AND (TM_STRENGTH_MIN<TM_UP_SLLOW)),TM,"!"),colorcyan;
